@@ -3,7 +3,6 @@ package vmess
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -17,6 +16,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/refraction-networking/utls"
+
+	C "github.com/Dreamacro/clash/constant"
 )
 
 type websocketConn struct {
@@ -80,15 +82,15 @@ func (wsc *websocketConn) Write(b []byte) (int, error) {
 }
 
 func (wsc *websocketConn) Close() error {
-	var errors []string
+	var mErrors []string
 	if err := wsc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(time.Second*5)); err != nil {
-		errors = append(errors, err.Error())
+		mErrors = append(mErrors, err.Error())
 	}
 	if err := wsc.conn.Close(); err != nil {
-		errors = append(errors, err.Error())
+		mErrors = append(mErrors, err.Error())
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to close connection: %s", strings.Join(errors, ","))
+	if len(mErrors) > 0 {
+		return fmt.Errorf("failed to close connection: %s", strings.Join(mErrors, ","))
 	}
 	return nil
 }
@@ -144,7 +146,7 @@ func (wsedc *websocketWithEarlyDataConn) Dial(earlyData []byte) error {
 
 	var err error
 	if wsedc.Conn, err = streamWebsocketConn(wsedc.underlay, wsedc.config, base64DataBuf); err != nil {
-		wsedc.Close()
+		_ = wsedc.Close()
 		return errors.New("failed to dial WebSocket: " + err.Error())
 	}
 
@@ -242,8 +244,22 @@ func streamWebsocketWithEarlyDataConn(conn net.Conn, c *WebsocketConfig) (net.Co
 
 func streamWebsocketConn(conn net.Conn, c *WebsocketConfig, earlyData *bytes.Buffer) (net.Conn, error) {
 	dialer := &websocket.Dialer{
-		NetDial: func(network, addr string) (net.Conn, error) {
+		NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			return conn, nil
+		},
+		NetDialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			tlsConn := tls.UClient(conn, c.TLSConfig, C.TLSClientHelloID)
+
+			if err := tlsConn.HandshakeContext(ctx); err != nil {
+				return nil, err
+			}
+			if !c.TLSConfig.InsecureSkipVerify {
+				if err := tlsConn.VerifyHostname(c.TLSConfig.ServerName); err != nil {
+					return nil, err
+				}
+			}
+
+			return tlsConn, nil
 		},
 		ReadBufferSize:   4 * 1024,
 		WriteBufferSize:  4 * 1024,
@@ -253,7 +269,6 @@ func streamWebsocketConn(conn net.Conn, c *WebsocketConfig, earlyData *bytes.Buf
 	scheme := "ws"
 	if c.TLS {
 		scheme = "wss"
-		dialer.TLSClientConfig = c.TLSConfig
 	}
 
 	u, err := url.Parse(c.Path)

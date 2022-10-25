@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	utls "github.com/refraction-networking/utls"
 	"go.uber.org/atomic"
 	"golang.org/x/net/http2"
 
@@ -166,13 +167,20 @@ func (g *Conn) SetDeadline(t time.Time) error {
 }
 
 func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config) *http2.Transport {
-	dialFunc := func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+	dialFunc := func(ctx context.Context, network, addr string, c *tls.Config) (net.Conn, error) {
 		pconn, err := dialFn(network, addr)
 		if err != nil {
 			return nil, err
 		}
 
-		cn := tls.Client(pconn, cfg)
+		uCfg := &utls.Config{
+			NextProtos:         c.NextProtos,
+			MinVersion:         c.MinVersion,
+			MaxVersion:         c.MaxVersion,
+			ServerName:         c.ServerName,
+			InsecureSkipVerify: c.InsecureSkipVerify,
+		}
+		cn := utls.UClient(pconn, uCfg, utls.HelloRandomizedALPN)
 		if err = cn.HandshakeContext(ctx); err != nil {
 			_ = pconn.Close()
 			return nil, err

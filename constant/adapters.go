@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/phuslu/log"
+	utls "github.com/refraction-networking/utls"
 
 	"github.com/Dreamacro/clash/component/dialer"
 )
+
+var TLSClientHelloID = utls.Hello360_Auto
 
 // Adapter Type
 const (

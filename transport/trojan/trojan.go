@@ -3,7 +3,6 @@ package trojan
 import (
 	"context"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -13,6 +12,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/refraction-networking/utls"
 	xtls "github.com/xtls/go"
 
 	"github.com/Dreamacro/clash/common/pool"
@@ -97,7 +97,7 @@ func (t *Trojan) StreamConn(conn net.Conn) (net.Conn, error) {
 			ServerName:         t.option.ServerName,
 		}
 
-		tlsConn := tls.Client(conn, tlsConfig)
+		tlsConn := tls.UClient(conn, tlsConfig, C.TLSClientHelloID)
 
 		// fix tls handshake not timeout
 		ctx, cancel := context.WithTimeout(context.Background(), C.DefaultTLSTimeout)

@@ -2,8 +2,9 @@ package vmess
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
+
+	"github.com/refraction-networking/utls"
 
 	C "github.com/Dreamacro/clash/constant"
 )
@@ -21,7 +22,7 @@ func StreamTLSConn(conn net.Conn, cfg *TLSConfig) (net.Conn, error) {
 		NextProtos:         cfg.NextProtos,
 	}
 
-	tlsConn := tls.Client(conn, tlsConfig)
+	tlsConn := tls.UClient(conn, tlsConfig, C.TLSClientHelloID)
 
 	// fix tls handshake not timeout
 	ctx, cancel := context.WithTimeout(context.Background(), C.DefaultTLSTimeout)

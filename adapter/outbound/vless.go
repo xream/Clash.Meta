@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 
+	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 
 	"github.com/Dreamacro/clash/component/dialer"
@@ -89,7 +90,7 @@ func (v *Vless) StreamConn(c net.Conn, metadata *C.Metadata) (net.Conn, error) {
 		}
 
 		wsOpts.TLS = true
-		wsOpts.TLSConfig = &tls.Config{
+		wsOpts.TLSConfig = &utls.Config{
 			MinVersion:         tls.VersionTLS12,
 			ServerName:         host,
 			InsecureSkipVerify: v.option.SkipCertVerify,

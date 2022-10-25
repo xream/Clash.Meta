@@ -1,9 +1,10 @@
 package obfs
 
 import (
-	"crypto/tls"
 	"net"
 	"net/http"
+
+	"github.com/refraction-networking/utls"
 
 	"github.com/Dreamacro/clash/transport/vmess"
 )

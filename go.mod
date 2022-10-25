@@ -13,6 +13,7 @@ require (
 	github.com/miekg/dns v1.1.50
 	github.com/oschwald/geoip2-golang v1.8.0
 	github.com/phuslu/log v1.0.82-0.20221016062012-b91113809886
+	github.com/refraction-networking/utls v1.1.5
 	github.com/stretchr/testify v1.8.0
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20220915185447-8715fe718dfd
 	github.com/xtls/go v0.0.0-20220914232946-0441cf4cf837
@@ -36,8 +37,10 @@ require (
 
 require (
 	github.com/ajg/form v1.5.1 // indirect
+	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/btree v1.0.1 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/u-root/uio v0.0.0-20210528114334-82958018845c // indirect

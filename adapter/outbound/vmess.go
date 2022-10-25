@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	utls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
 
 	"github.com/Dreamacro/clash/common/convert"
@@ -106,7 +107,7 @@ func (v *Vmess) StreamConn(c net.Conn, metadata *C.Metadata) (net.Conn, error) {
 
 		if v.option.TLS {
 			wsOpts.TLS = true
-			wsOpts.TLSConfig = &tls.Config{
+			wsOpts.TLSConfig = &utls.Config{
 				ServerName:         host,
 				InsecureSkipVerify: v.option.SkipCertVerify,
 				NextProtos:         []string{"http/1.1"},
