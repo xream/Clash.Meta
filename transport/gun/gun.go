@@ -22,6 +22,7 @@ import (
 	"golang.org/x/net/http2"
 
 	"github.com/Dreamacro/clash/common/pool"
+	C "github.com/Dreamacro/clash/constant"
 )
 
 var (
@@ -180,7 +181,7 @@ func NewHTTP2Client(dialFn DialFn, tlsConfig *tls.Config) *http2.Transport {
 			ServerName:         c.ServerName,
 			InsecureSkipVerify: c.InsecureSkipVerify,
 		}
-		cn := utls.UClient(pconn, uCfg, utls.HelloRandomizedALPN)
+		cn := utls.UClient(pconn, uCfg, C.TLSClientHelloID)
 		if err = cn.HandshakeContext(ctx); err != nil {
 			_ = pconn.Close()
 			return nil, err

@@ -12,7 +12,7 @@ import (
 	"github.com/Dreamacro/clash/component/dialer"
 )
 
-var TLSClientHelloID = utls.Hello360_Auto
+var TLSClientHelloID = utls.HelloSafari_16_0
 
 // Adapter Type
 const (

@@ -49,6 +49,7 @@ type VmessOption struct {
 	HTTP2Opts      HTTP2Options `proxy:"h2-opts,omitempty"`
 	GrpcOpts       GrpcOptions  `proxy:"grpc-opts,omitempty"`
 	WSOpts         WSOptions    `proxy:"ws-opts,omitempty"`
+	RandomHost     bool         `proxy:"rand-host,omitempty"`
 
 	// TODO: compatible with VMESS WS older version configurations
 	WSHeaders map[string]string `proxy:"ws-headers,omitempty"`
@@ -114,14 +115,12 @@ func (v *Vmess) StreamConn(c net.Conn, metadata *C.Metadata) (net.Conn, error) {
 			}
 			if v.option.ServerName != "" {
 				wsOpts.TLSConfig.ServerName = v.option.ServerName
-			} else if host := wsOpts.Headers.Get("Host"); host != "" {
-				wsOpts.TLSConfig.ServerName = host
+			} else if host1 := wsOpts.Headers.Get("Host"); host1 != "" {
+				wsOpts.TLSConfig.ServerName = host1
 			}
-		} else {
-			if wsOpts.Headers.Get("Host") == "" {
-				wsOpts.Headers.Set("Host", convert.RandHost())
-			}
-			convert.SetUserAgent(wsOpts.Headers)
+		} else if v.option.RandomHost || wsOpts.Headers.Get("Host") == "" {
+			wsOpts.Headers.Set("Host", convert.RandHost())
+			wsOpts.Headers.Set("User-Agent", convert.RandUserAgent())
 		}
 		c, err = vmess.StreamWebsocketConn(c, wsOpts)
 	case "http":
@@ -141,6 +140,9 @@ func (v *Vmess) StreamConn(c net.Conn, metadata *C.Metadata) (net.Conn, error) {
 			if err != nil {
 				return nil, err
 			}
+		} else if v.option.RandomHost || len(v.option.HTTPOpts.Headers["Host"]) == 0 {
+			v.option.HTTPOpts.Headers["Host"] = []string{convert.RandHost()}
+			v.option.HTTPOpts.Headers["User-Agent"] = []string{convert.RandUserAgent()}
 		}
 
 		host, _, _ := net.SplitHostPort(v.addr)
