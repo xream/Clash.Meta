@@ -10,6 +10,8 @@ import (
 	"github.com/Dreamacro/clash/common/pool"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/log"
+
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 func handleUDPToRemote(packet C.UDPPacket, pc C.PacketConn, metadata *C.Metadata) error {
@@ -43,18 +45,25 @@ func handleUDPToLocal(packet C.UDPPacket, pc net.PacketConn, key string, oAddr, 
 			return
 		}
 
-		fromUDPAddr := from.(*net.UDPAddr)
-		_fromUDPAddr := *fromUDPAddr
-		fromUDPAddr = &_fromUDPAddr // make a copy
-		if fromAddr, ok := netip.AddrFromSlice(fromUDPAddr.IP); ok {
-			if fAddr.IsValid() && (oAddr.Unmap() == fromAddr.Unmap()) {
+		if fromUDPAddr, ok := from.(*net.UDPAddr); ok {
+			_fromUDPAddr := *fromUDPAddr
+			fromUDPAddr = &_fromUDPAddr // make a copy
+			fromAddr := fromUDPAddr.AddrPort().Addr().Unmap()
+			if fAddr.IsValid() && (oAddr.Unmap() == fromAddr) {
 				fromUDPAddr.IP = fAddr.Unmap().AsSlice()
 			} else {
-				fromUDPAddr.IP = fromAddr.Unmap().AsSlice()
+				fromUDPAddr.IP = fromAddr.AsSlice()
 			}
+			from = fromUDPAddr
+		} else if fromSockAddr, ok := from.(M.Socksaddr); ok {
+			fromSockAddr = fromSockAddr.Unwrap()
+			if fAddr.IsValid() && (oAddr.Unmap() == fromSockAddr.Addr) {
+				fromSockAddr.Addr = fAddr.Unmap()
+			}
+			from = fromSockAddr
 		}
 
-		_, err = packet.WriteBack(buf[:n], fromUDPAddr)
+		_, err = packet.WriteBack(buf[:n], from)
 		if err != nil {
 			return
 		}
