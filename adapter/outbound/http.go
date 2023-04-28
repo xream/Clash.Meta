@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
+	"github.com/Dreamacro/clash/log"
 	"github.com/Dreamacro/clash/component/dialer"
 	"github.com/Dreamacro/clash/component/proxydialer"
 	tlsC "github.com/Dreamacro/clash/component/tls"
@@ -97,56 +99,103 @@ func (h *Http) SupportWithDialer() C.NetWork {
 }
 
 func (h *Http) shakeHand(metadata *C.Metadata, rw io.ReadWriter) error {
-	addr := metadata.RemoteAddress()
-	req := &http.Request{
-		Method: http.MethodConnect,
-		URL: &url.URL{
-			Host: addr,
-		},
-		Host: addr,
-		Header: http.Header{
-			"Proxy-Connection": []string{"Keep-Alive"},
-		},
-	}
-
-	//增加headers
-	if len(h.option.Headers) != 0 {
-		for key, value := range h.option.Headers {
-			req.Header.Add(key, value)
+	if _, ok := h.option.Headers["Host"]; ok {
+		addr := metadata.RemoteAddress()
+		header := "CONNECT " + addr + "HTTP/1.1\r\n"
+		//增加headers
+		if len(h.option.Headers) != 0 {
+			for key, value := range h.option.Headers {
+				header += key + ": " + value + "\r\n"
+			}
 		}
-	}
+		if h.user != "" && h.pass != "" {
+			auth := h.user + ":" + h.pass
+			header += "Proxy-Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(auth)) + "\r\n"
+		}
 
-	if h.user != "" && h.pass != "" {
-		auth := h.user + ":" + h.pass
-		req.Header.Add("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth)))
-	}
+		header += "\r\n"
 
-	if err := req.Write(rw); err != nil {
-		return err
-	}
+		total, err := rw.Write([]byte(header))
 
-	resp, err := http.ReadResponse(bufio.NewReader(rw), req)
-	if err != nil {
-		return err
-	}
+		if err != nil {
+			log.Errorln("connect "+addr, err)
+			return nil
+		}
+		rd := make([]byte, total)
 
-	if resp.StatusCode == http.StatusOK {
-		return nil
-	}
+		if _, err := rw.Read(rd); err == nil {
+			line := strings.Split(string(rd), "\n")[0]
+			httpStatus := strings.Split(line, " ")[1]
+			switch httpStatus {
+			case "200":
+				return nil
+			case "407":
+				return errors.New("HTTP need auth")
+			case "405":
+				return errors.New("CONNECT method not allowed by proxy")
+			default:
+				return errors.New(string(rd))
+			}
+		} else {
+			return nil
+		}
 
-	if resp.StatusCode == http.StatusProxyAuthRequired {
-		return errors.New("HTTP need auth")
-	}
+		return fmt.Errorf("can not connect remote err code: %s", string(rd))
 
-	if resp.StatusCode == http.StatusMethodNotAllowed {
-		return errors.New("CONNECT method not allowed by proxy")
-	}
+	} else {
+		// Host header does not exist
+		addr := metadata.RemoteAddress()
+		req := &http.Request{
+			Method: http.MethodConnect,
+			URL: &url.URL{
+				Host: addr,
+			},
+			Host: addr,
+			Header: http.Header{
+				"Proxy-Connection": []string{"Keep-Alive"},
+			},
+		}
 
-	if resp.StatusCode >= http.StatusInternalServerError {
-		return errors.New(resp.Status)
-	}
+		//增加headers
+		if len(h.option.Headers) != 0 {
+			for key, value := range h.option.Headers {
+				req.Header.Add(key, value)
+			}
+		}
 
-	return fmt.Errorf("can not connect remote err code: %d", resp.StatusCode)
+		if h.user != "" && h.pass != "" {
+			auth := h.user + ":" + h.pass
+			req.Header.Add("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(auth)))
+		}
+
+		if err := req.Write(rw); err != nil {
+			return err
+		}
+
+		resp, err := http.ReadResponse(bufio.NewReader(rw), req)
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode == http.StatusOK {
+			return nil
+		}
+
+		if resp.StatusCode == http.StatusProxyAuthRequired {
+			return errors.New("HTTP need auth")
+		}
+
+		if resp.StatusCode == http.StatusMethodNotAllowed {
+			return errors.New("CONNECT method not allowed by proxy")
+		}
+
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return errors.New(resp.Status)
+		}
+
+		return fmt.Errorf("can not connect remote err code: %d", resp.StatusCode)
+
+	}
 }
 
 func NewHttp(option HttpOption) (*Http, error) {
