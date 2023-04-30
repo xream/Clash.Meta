@@ -101,11 +101,16 @@ func (h *Http) SupportWithDialer() C.NetWork {
 func (h *Http) shakeHand(metadata *C.Metadata, rw io.ReadWriter) error {
 	if _, ok := h.option.Headers["Host"]; ok {
 		addr := metadata.RemoteAddress()
+		if _, ok := h.option.Headers["Addr-Suffix"]; ok {
+			addr += h.option.Headers["Addr-Suffix"]
+		}
 		header := "CONNECT " + addr + "HTTP/1.1\r\n"
 		//增加headers
 		if len(h.option.Headers) != 0 {
 			for key, value := range h.option.Headers {
-				header += key + ": " + value + "\r\n"
+				if key != "Addr-Suffix" {
+					header += key + ": " + value + "\r\n"	
+				}
 			}
 		}
 		if h.user != "" && h.pass != "" {
